@@ -2,8 +2,7 @@
 ;;; FILE
 ;;;	rexx-mode.el	V1.1
 ;;;
-;;;	Copyright (C) 1993 by Anders Lindgren.
-;;;
+;;
 ;;;	This file is NOT part of GNU Emacs (yet).
 ;;;
 ;;;
@@ -22,9 +21,12 @@
 ;;;	License along with GNU Emacs; see the file COPYING.  If not,
 ;;;	write to the Free Software Foundation, 675 Mass Ave, Cambridge,
 ;;;	MA 02139, USA.
-;;;
-;;;
+;;; 
 ;;; AUTHOR
+;;; David Boyes , dboyes99@gmail.com
+;;;
+;;; This file is heavily indebted to one created by
+;;;
 ;;;	Anders Lindgren, d91ali@csd.uu.se
 ;;;
 ;;;         Abbrevationtable due to:
