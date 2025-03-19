@@ -485,7 +485,7 @@ table to convert all REXX keywords into upper case."
     )
   (require 'font-lock)
 
-  (run-hooks 'rexx-mode-hook))
+  (run-mode-hooks 'rexx-mode-hook))
 
 
 (defun rexx-indent-command (&optional whole-exp)
