@@ -77,7 +77,7 @@
 
 ;; Common CMS Pipelines stage names (extend as needed)
 (defconst rexx-pipe-stage-names
-  '("specs" "locate" "change" "find" "take" "drop" "sort" "append"
+  '("specs" "locate" "change" "find" "take" "drop" "sort" "append" "console"
     "stem" "literal" "split" "join" "rexx" "host" "command" "substitute"
     "strip" "center" "lower" "upper" "count" "unique" "merge" "tee" "out" "in"
     "fields" "blank" "nonblank" "trim" "pack" "unpack" "pad" "date" "time")
@@ -97,7 +97,7 @@
     (modify-syntax-entry ?/ ". 124b" st)
     (modify-syntax-entry ?* ". 23"   st)
     (modify-syntax-entry ?\n "> b"   st)
-
+    (modify-syntax-entry ?# "< b" st)   ;; '#' starts a comment
     ;; Strings: both ' and "
     (modify-syntax-entry ?\" "\"" st)
     (modify-syntax-entry ?'  "\"" st)
@@ -107,6 +107,14 @@
 
     st)
   "Syntax table for `rexx-mode'.")
+
+
+;; After defining the syntax table:
+(defun rexx-syntax-propertize (start end)
+  (funcall
+   (syntax-propertize-rules
+    ("\\(--\\)\\(?:\\s-\\|$\\)" (1 "< b"))) ; '--' starts a comment
+   start end))
 
 ;; ------------------------------
 ;; Font-lock
@@ -135,6 +143,14 @@
     (,rexx-number-regexp   (1 font-lock-constant-face))
    )
   "Default expressions to highlight in Rexx mode.")
+
+;; Custom comment face:
+(defface rexx-comment-face
+  '((((class color)) :foreground "SeaGreen3")
+    (t :inherit font-lock-comment-face))
+  "Face for Rexx comments.")
+(setq-local rexx--comment-face-cookie
+            (face-remap-add-relative 'font-lock-comment-face 'rexx-comment-face))
 
 ;; ------------------------------
 ;; Indentation
@@ -297,11 +313,15 @@
   (setq-local font-lock-keywords-case-fold-search t)  ;; case-insensitive
   (setq-local indent-line-function #'rexx-indent-line)
   (setq-local local-abbrev-table rexx-mode-abbrev-table)
+  (setq-local syntax-propertize-function #'rexx-syntax-propertize)
+  (setq-local comment-start "-- ")
+  (setq-local comment-start-skip "\\(?:--\\|#\\)\\s-*")
   (setq-local imenu-generic-expression `(("Labels" ,rexx-label-regexp 1)))
-  (rexx--maybe-enable-abbrevs)
+  ;; (rexx--maybe-enable-abbrevs)
   ;; Strings in both ' and "
   (modify-syntax-entry ?\" "\"" rexx-mode-syntax-table)
   (modify-syntax-entry ?'  "\"" rexx-mode-syntax-table))
+
 
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.rex\\'" . rexx-mode))
