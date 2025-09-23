@@ -1,9 +1,9 @@
-;;; rexx-mode.el --- Major mode for Rexx language  -*- lexical-binding: t; -*-
-;; Author: ChatGPT
-;; Version: 0.2
+;;; crexx-mode.el --- Major mode for Rexx language  -*- lexical-binding: t; -*-
+;; Author: rvjansen
+;; Version: 0.01
 ;; Keywords: languages
 ;; Package-Requires: ((emacs "24.4"))
-;; URL: https://example.invalid/rexx-mode
+;; URL: https://example.invalid/crexx-mode
 
 ;;; Commentary:
 ;; Minimal Rexx major mode with:
@@ -12,20 +12,18 @@
 ;; - label & number highlighting
 ;; - CMS Pipelines: pipes, stage labels, common stage names
 ;; - indentation for do/end, loop/end, select/when/otherwise/end
-;; - small abbrev set
 ;;
 ;; Usage:
 ;;   (add-to-list 'load-path "/path/to/dir")
-;;   (require 'rexx-mode)
-;;   (add-to-list 'auto-mode-alist '("\\.rex\\'" . rexx-mode))
-;;   (add-to-list 'auto-mode-alist '("\\.rexx\\'" . rexx-mode))
-;;   (add-to-list 'auto-mode-alist '("\\.cmd\\'" . rexx-mode))
+;;   (require 'crexx-mode)
+;;   (add-to-list 'auto-mode-alist '("\\.rex\\'" . crexx-mode))
+;;   (add-to-list 'auto-mode-alist '("\\.rexx\\'" . crexx-mode))
+;;   (add-to-list 'auto-mode-alist '("\\.cmd\\'" . crexx-mode))
+;;   etc.
 
 ;;; Code:
 
-(require 'cl-lib)
-
-(defgroup rexx-mode nil
+(defgroup crexx-mode nil
   "Major mode for editing Rexx."
   :group 'languages)
 
@@ -34,11 +32,11 @@
 ;; ------------------------------
 
 (defconst rexx-keywords
-  '("address" "arg" "break" "call" "do" "drop"
+  '("address" "arg" "assembler" "break" "call" "do" "drop"
     "echo" "else" "end" "exit"
-    "forever" "if" "interpret" "iterate" "leave"
+    "forever" "if" "import" "interpret" "iterate" "leave"
     "nop" "numeric" "options" "otherwise"
-    "parse" "procedure" "push" "pull"
+    "parse" "procedure" "push" "pull" "namespace" "expose"
     "queue" "return" "say" "select" "shell" "signal"
     "then" "to" "trace" "until" "upper" "when" "while" "loop")
   "Rexx keywords / statements. Case-insensitive.")
@@ -91,12 +89,12 @@
 ;; Syntax table
 ;; ------------------------------
 
-(defvar rexx-mode-syntax-table
+(defvar crexx-mode-syntax-table
   (let ((st (make-syntax-table)))
     ;; Comment syntax: /* ... */
     (modify-syntax-entry ?/ ". 124b" st)
     (modify-syntax-entry ?* ". 23"   st)
-    (modify-syntax-entry ?# "< b" st)   ;; '#' starts a comment
+    (modify-syntax-entry ?# "< b" st)
     (modify-syntax-entry ?\n "> b"   st)
 
     ;; Strings: both ' and "
@@ -107,7 +105,7 @@
     (modify-syntax-entry ?_  "w" st)
 
     st)
-  "Syntax table for `rexx-mode'.")
+  "Syntax table for `crexx-mode'.")
 
 
 ;; After defining the syntax table:
@@ -145,13 +143,18 @@
    )
   "Default expressions to highlight in Rexx mode.")
 
+
+;; .dot words are types in crexx
+(add-to-list 'rexx-font-lock-keywords
+             '("\\.[A-Za-z_][A-Za-z0-9_]*\\>" . font-lock-type-face))
+
 ;; ------------------------------
 ;; Indentation
 ;; ------------------------------
 
 (defgroup rexx-indent nil
   "Indentation settings for Rexx mode."
-  :group 'rexx-mode)
+  :group 'crexx-mode)
 
 (defcustom rexx-indent-offset 2
   "Indentation offset for Rexx blocks."
@@ -247,44 +250,13 @@
       (move-to-column col))))
 
 ;; ------------------------------
-;; Abbreviations
-;; ------------------------------
-
-(defgroup rexx-abbrev nil
-  "Abbreviations for Rexx mode."
-  :group 'rexx-mode)
-
-(defcustom rexx-use-default-abbrevs t
-  "If non-nil, enable a small default abbrev set for Rexx."
-  :type 'boolean
-  :group 'rexx-abbrev)
-
-(define-abbrev-table 'rexx-mode-abbrev-table
-  '(("ii"      "interpret" nil :system t)
-    ("sel"     "select"    nil :system t)
-    ("wh"      "when"      nil :system t)
-    ("oth"     "otherwise" nil :system t)
-    ("proc"    "procedure" nil :system t)
-    ("num"     "numeric"   nil :system t)
-    ("ret"     "return"    nil :system t)
-    ("sig"     "signal"    nil :system t)
-    ("th"      "then"      nil :system t)
-    ("uq"      "upper"     nil :system t)
-    ("qq"      "queue"     nil :system t)))
-
-(defun rexx--maybe-enable-abbrevs ()
-  "Enable `abbrev-mode' if `rexx-use-default-abbrevs' is non-nil."
-  (when rexx-use-default-abbrevs
-    (abbrev-mode 1)))
-
-;; ------------------------------
 ;; Mode definition
 ;; ------------------------------
 
 ;;;###autoload
-(define-derived-mode rexx-mode prog-mode "Rexx"
+(define-derived-mode crexx-mode prog-mode "Rexx"
   "Major mode for editing Rexx code."
-  :syntax-table rexx-mode-syntax-table
+  :syntax-table crexx-mode-syntax-table
   (setq-local comment-start "/* ")
   (setq-local comment-end " */")
 
@@ -294,10 +266,17 @@
     (list
       ;; ports
       (list
-	"address *\\(\\<\\w*\\>\\)" '(1 font-lock-variable-name-face nil))
+       "address *\\(\\<\\w*\\>\\)" '(1 font-lock-variable-name-face nil))
+      ;; namespace names
+      (list
+       "namespace *\\(\\<\\w*\\>\\)" '(1 font-lock-variable-name-face nil))
+      ;; import names
+      (list
+       "import *\\(\\<\\w*\\>\\)" '(1 font-lock-variable-name-face nil))
+
       ;; user function names
       (list
-	"^\\(\\<.*\\>\\):" '(1 font-lock-type-face nil))
+       "^\\(\\<.*\\>\\):" '(1 font-lock-type-face nil))
       )
     
     )
@@ -306,15 +285,16 @@
   (setq-local font-lock-defaults '(rexx-font-lock-keywords-2))
   (setq-local font-lock-keywords-case-fold-search t)  ;; case-insensitive
   (setq-local indent-line-function #'rexx-indent-line)
+
   ;; Custom comment face:
-  (defface rexx-comment-face
-    '((((class color)) :foreground "SeaGreen2")
-      (t :inherit font-lock-comment-face))
-    "Face for Rexx comments.")
-  (setq-local rexx--comment-face-cookie
-              (face-remap-add-relative 'font-lock-comment-face 'rexx-comment-face))
+  ;; (defface rexx-comment-face
+  ;;   '((((class color)) :foreground "mediumspringgreen")
+  ;;     (t :inherit font-lock-comment-face))
+  ;;   "Face for Rexx comments.")
+  ;; (setq-local rexx--comment-face-cookie
+  ;;             (face-remap-add-relative 'font-lock-comment-face 'rexx-comment-face))
   
-  (setq-local local-abbrev-table rexx-mode-abbrev-table)
+  (setq-local local-abbrev-table crexx-mode-abbrev-table)
   (setq-local syntax-propertize-function #'rexx-syntax-propertize)
   (setq-local comment-start "-- ")
   (setq-local comment-continue "-- ")
@@ -323,8 +303,8 @@
   (setq-local imenu-generic-expression `(("Labels" ,rexx-label-regexp 1)))
   ;; (rexx--maybe-enable-abbrevs)
   ;; Strings in both ' and "
-  (modify-syntax-entry ?\" "\"" rexx-mode-syntax-table)
-  (modify-syntax-entry ?'  "\"" rexx-mode-syntax-table))
+  (modify-syntax-entry ?\" "\"" crexx-mode-syntax-table)
+  (modify-syntax-entry ?'  "\"" crexx-mode-syntax-table))
 
 ;; Force comment commands to use the vars above (not block comment syntax table)
 (setq-local comment-use-syntax nil)
@@ -332,13 +312,5 @@
 ;; Optional: how line prefixes align
 (setq-local comment-style 'indent)   ;; or 'aligned
 
-
-;; ;;;###autoload
-;; (add-to-list 'auto-mode-alist '("\\.rex\\'" . rexx-mode))
-;; ;;;###autoload
-;; (add-to-list 'auto-mode-alist '("\\.rexx\\'" . rexx-mode))
-;; ;;;###autoload
-;; (add-to-list 'auto-mode-alist '("\\.cmd\\'" . rexx-mode))
-
-(provide 'rexx-mode)
-;;; rexx-mode.el ends here
+(provide 'crexx-mode)
+;;; crexx-mode.el ends here
