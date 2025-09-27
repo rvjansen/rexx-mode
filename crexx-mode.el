@@ -282,7 +282,8 @@
     )
   )
   
-  (setq-local font-lock-defaults '(rexx-font-lock-keywords-2))
+  (setq-local font-lock-defaults '((rexx-font-lock-keywords-2) nil t))
+  (setq-local case-fold-search t)
   (setq-local font-lock-keywords-case-fold-search t)  ;; case-insensitive
   (setq-local indent-line-function #'rexx-indent-line)
 
