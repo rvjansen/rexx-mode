@@ -32,13 +32,13 @@
 ;; ------------------------------
 
 (defconst rexx-keywords
-  '("address" "arg" "assembler" "break" "call" "do" "drop"
+  '("address" "arg" "assembler" "break" "call" "class" "do" "drop"
     "echo" "else" "end" "exit"
-    "forever" "if" "import" "interpret" "iterate" "leave"
+    "factory" "forever" "if" "import" "interpret" "iterate" "leave" "method"
     "nop" "numeric" "options" "otherwise"
     "parse" "procedure" "push" "pull" "namespace" "expose"
     "queue" "return" "say" "select" "shell" "signal"
-    "then" "to" "trace" "until" "upper" "when" "while" "loop")
+    "then" "to" "trace" "until" "upper" "when" "with" "while" "loop")
   "Rexx keywords / statements. Case-insensitive.")
 
 (defconst rexx-builtin-functions
