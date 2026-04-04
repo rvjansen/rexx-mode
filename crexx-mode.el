@@ -21,6 +21,8 @@
 ;;; Code:
 
 (require 'subr-x)
+(require 'imenu)
+(require 'easymenu)
 
 (defgroup crexx-mode nil
   "Major mode for editing Rexx."
@@ -84,6 +86,26 @@
   "\\b\\([0-9]+\\(?:\\.[0-9]+\\)?\\)\\b"
   "Regexp matching numeric literals.")
 
+(defconst rexx-class-regexp
+  "^[ \t]*\\(\\*\\|[A-Za-z_][A-Za-z0-9_]*\\)[ \t]*:[ \t]*\\_<class\\_>"
+  "Regexp matching class definitions.")
+
+(defconst rexx-method-regexp
+  "^[ \t]*\\(\\*\\|[A-Za-z_][A-Za-z0-9_]*\\)[ \t]*:[ \t]*\\_<method\\_>"
+  "Regexp matching method definitions.")
+
+(defconst rexx-factory-regexp
+  "^[ \t]*\\(\\*\\|[A-Za-z_][A-Za-z0-9_]*\\)[ \t]*:[ \t]*\\_<factory\\_>"
+  "Regexp matching factory definitions.")
+
+(defconst rexx-return-type-regexp
+  "=[ \t]*\\(\\.[A-Za-z_][A-Za-z0-9_]*\\)"
+  "Regexp matching a CREXX return type.")
+
+(defconst rexx-call-regexp
+  "\\_<\\([A-Za-z_][A-Za-z0-9_]*\\)\\_>[ \t]*("
+  "Regexp matching a function or method call followed by `(`.")
+
 ;; ------------------------------
 ;; Syntax
 ;; ------------------------------
@@ -118,18 +140,53 @@
     ("\\(--\\)\\(?:\\s-\\|$\\)" (1 "< b")))
    start end))
 
+(defvar rexx-imenu-generic-expression
+  `(
+    ("Classes"   ,rexx-class-regexp   1)
+    ("Methods"   ,rexx-method-regexp  1)
+    ("Factories" ,rexx-factory-regexp 1)
+    ))
 ;; ------------------------------
 ;; Font lock
 ;; ------------------------------
 
+(defconst rexx-defining-label-regexp
+  "^[ \t]*\\(\\*\\|[A-Za-z_][A-Za-z0-9_]*\\)[ \t]*:[ \t]*\\_<\\(class\\|method\\|factory\\)\\_>"
+  "Regexp matching a label that defines a class, method, or factory.")
+
 (defvar rexx-font-lock-keywords
-  `((,rexx-keywords-regexp . font-lock-keyword-face)
+  `(
+    ;; Labels that define class/method/factory
+    (,rexx-defining-label-regexp
+     (1 font-lock-function-name-face prepend))
+
+    ;; Function/method calls like foo(...)
+    (,rexx-call-regexp
+     (1 font-lock-function-name-face))
+    
+    ;; Keywords
+    (,rexx-keywords-regexp . font-lock-keyword-face)
+
+    ;; Flush-left top-level labels
     (,rexx-label-regexp (1 font-lock-function-name-face))
+
+    ;; Numbers
     (,rexx-number-regexp (1 font-lock-constant-face))
+
+    ;; Return types: = .int
+    (,rexx-return-type-regexp (1 font-lock-type-face))
+
+     ;; All ARG parameters on an arg line
+    (rexx-match-arg-variables (0 font-lock-variable-name-face))
+
+    ;; .types
     ("\\.[A-Za-z_][A-Za-z0-9_]*\\>" . font-lock-type-face)
+
+    ;; address / namespace / import targets
     ("address[ \t]+\\(\\<\\w+\\>\\)" (1 font-lock-variable-name-face))
     ("namespace[ \t]+\\(\\<\\w+\\>\\)" (1 font-lock-variable-name-face))
-    ("import[ \t]+\\(\\<\\w+\\>\\)" (1 font-lock-variable-name-face)))
+    ("import[ \t]+\\(\\<\\w+\\>\\)" (1 font-lock-variable-name-face))
+    )
   "Font-lock rules for `crexx-mode'.")
 
 ;; ------------------------------
@@ -137,6 +194,22 @@
 ;; ------------------------------
 
 (define-abbrev-table 'crexx-mode-abbrev-table ())
+
+;; ------------------------------
+;; Helper for easymenu
+;; ------------------------------
+
+(defvar crexx-mode-map
+  (let ((map (make-sparse-keymap)))
+    map)
+  "Keymap for `crexx-mode'.")
+
+(easy-menu-define crexx-mode-menu crexx-mode-map
+  "Menu for `crexx-mode'."
+  '("Crexx"
+    ["Index..." imenu t]
+    "---"
+    ["Indent line" rexx-indent-line t]))
 
 ;; ------------------------------
 ;; Helpers
@@ -245,6 +318,27 @@ Header lines themselves do not count as body lines."
   "Return non-nil if current line is inside a METHOD/FACTORY body."
   (rexx--inside-member-p))
 
+(defun rexx-match-arg-variables (limit)
+  "Match ARG variable names up to LIMIT.
+Highlights every variable name on an ARG line that appears before =."
+  (catch 'found
+    (while (re-search-forward
+            "\\_<arg\\_>\\|\\([A-Za-z_][A-Za-z0-9_]*\\)[ \t]*="
+            limit t)
+      (cond
+       ;; Saw ARG: continue scanning on this line
+       ((save-excursion
+          (goto-char (match-beginning 0))
+          (looking-at "\\_<arg\\_>")))
+
+       ;; Saw a variable before = ; only accept it on an ARG line
+       ((match-beginning 1)
+        (save-excursion
+          (beginning-of-line)
+          (when (looking-at "^[ \t]*arg\\_>")
+            (set-match-data (list (match-beginning 1) (match-end 1)))
+            (throw 'found t)))))))
+  nil)
 ;; ------------------------------
 ;; Indentation
 ;; ------------------------------
@@ -319,7 +413,11 @@ Header lines themselves do not count as body lines."
   (setq-local comment-start "-- ")
   (setq-local comment-continue "-- ")
   (setq-local comment-end "")
-  (setq-local comment-start-skip "\\(?:--\\|#\\)\\s-*"))
+  (setq-local comment-start-skip "\\(?:--\\|#\\)\\s-*")
+
+  (setq-local imenu-generic-expression rexx-imenu-generic-expression)
+  (setq-local imenu-case-fold-search t)
+  (easy-menu-add crexx-mode-menu crexx-mode-map))
 
 (provide 'crexx-mode)
 
