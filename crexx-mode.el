@@ -296,13 +296,45 @@ Return non-nil if such a line exists."
        ((looking-at "\\s-*\\_<\\(when\\|otherwise\\)\\_>") 'mid)
        (t nil)))))
 
-(defun rexx--doc-comment-continuation-line-p ()
-  "Return non-nil if current line is a leading `*' or closing `*/' line inside a block comment."
+(defun rexx--doc-comment-start-line-p ()
+  "Return non-nil if current line starts a Javadoc-style block comment."
   (save-excursion
     (beginning-of-line)
-    (and (nth 4 (syntax-ppss))
-         (looking-at "^[ \t]*\\(?:\\*\\(?:[ \t].*\\)?\\|\\*/\\)"))))
+    (looking-at "^[ \t]*/\\*\\*")))
 
+(defun rexx--inside-doc-comment-p ()
+  "Return non-nil if point is in a Javadoc-style /** */ block comment."
+  (let ((comment-start (nth 8 (syntax-ppss))))
+    (and comment-start
+         (save-excursion
+           (goto-char comment-start)
+           (looking-at "/\\*\\*")))))
+
+(defun rexx--doc-comment-continuation-line-p ()
+  "Return non-nil if current line is a leading `*' line inside a /** */ comment."
+  (save-excursion
+    (beginning-of-line)
+    (and (rexx--inside-doc-comment-p)
+         ;; Match only doc-comment continuation lines like "   * text".
+         ;; Do not match method bodies or other ordinary code.
+         (looking-at "^[ \t]*\\*\\(?:[ \t].*\\)?$"))))
+
+(defun rexx--doc-comment-end-line-p ()
+  "Return non-nil if current line is the closing `*/' line of a /** */ comment."
+  (save-excursion
+    (beginning-of-line)
+    (and (rexx--inside-doc-comment-p)
+         (looking-at "^[ \t]*\\*/"))))
+
+(defun rexx--doc-comment-base-indent ()
+  "Return the indentation of the opening /** line for the current doc comment."
+  (save-excursion
+    (let ((comment-start (nth 8 (syntax-ppss))))
+      (if comment-start
+          (progn
+            (goto-char comment-start)
+            (current-indentation))
+        (current-indentation)))))
 
 (defun rexx--class-or-interface-line-p ()
   "Return non-nil if current line is a CLASS or INTERFACE label."
@@ -438,12 +470,20 @@ Highlights every variable name on an ARG line that appears before =."
   (interactive)
   (let ((col (current-column)))
     (cond
-     ;; Keep Javadoc-style block comment continuation lines stable:
-     ;; /**
-     ;;  * text
-     ;;  */
+     ;; Keep Javadoc-style block comments stable at any indentation:
+     ;;     /**
+     ;;      * text
+     ;;      */
+     ;; The opening line stays where the user put it.  Continuation
+     ;; lines align one column after the opening indentation.
+     ((rexx--doc-comment-start-line-p)
+      (indent-line-to (current-indentation)))
+
+     ((rexx--doc-comment-end-line-p)
+      (indent-line-to (1+ (rexx--doc-comment-base-indent))))
+
      ((rexx--doc-comment-continuation-line-p)
-      (indent-line-to 1))
+      (indent-line-to (1+ (rexx--doc-comment-base-indent))))
 
      ;; Absolute override: CLASS and INTERFACE definitions are top-level
      ;; declarations in CREXX and must always start in column 0.
